@@ -13,3 +13,8 @@
 Once the program launched :
 - Enter a valid generator name to call it. Once a valid generator was entered, pressing Enter recalls the generator.
 - `ls` to list all generators.
+
+General generators :
+- discovery
+- danger
+- dungeon exploration
