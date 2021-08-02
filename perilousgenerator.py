@@ -55,48 +55,60 @@ class Generator:
                 previous_entry = entry
         return previous_entry.outcomes
 
-    def _resolve(self, to_resolve, depth=0, associated=True):
+    def _resolve(self, to_resolve, associated=True):
         if isinstance(to_resolve, GenerateAction):
             subgenerator = generators[to_resolve.generator_name]
             try:
                 repeat = to_resolve.repeat.roll()
-            except TypeError:
+            except AttributeError:
                 repeat = to_resolve.repeat
             if repeat > 1:
-                return [subgenerator.generate(depth=depth+1, dice=to_resolve.dice, associated=associated)
+                return [subgenerator.generate(dice=to_resolve.dice, associated=associated)
                         for _ in range(repeat)]
             else:
-                return subgenerator.generate(depth=depth+1, dice=to_resolve.dice, associated=associated)
+                return subgenerator.generate(dice=to_resolve.dice, associated=associated)
         elif to_resolve in generators:
-            return generators[to_resolve].generate(depth=depth+1)
+            return generators[to_resolve].generate()
         else:
             return [to_resolve]
 
-    def generate(self, depth=0, dice=None, associated=True):
+    def generate(self, dice=None, associated=True):
         generated_texts = [self.name]
         if self.entries:
             result = self.dice.roll() if not dice else dice.roll()
             outcomes = self._select_outcomes(result)
-            print(outcomes)
+            #print(outcomes)
             for outcome in outcomes:
-                generated_texts.append(self._resolve(outcome, depth,  associated=associated))
+                generated_texts.append(self._resolve(outcome, associated=associated))
         if associated:
             try:
                 for generator in self.associated_generators:
-                    generated_texts.append(self._resolve(generator, depth,  associated=associated))
+                    generated_texts.append(self._resolve(generator, associated=associated))
             except TypeError:
                 pass
         return generated_texts
 
-    def generate_print(self, generated_texts=None, depth=0):
-        if not generated_texts:
-            generated_texts = self.generate()
-            print(generated_texts)
-        for generated_text in generated_texts:
-            if isinstance(generated_text, str):
-                print('├' * depth + '┬' + generated_text)
+    def _recursive_print(self, generated_texts, indent=None, is_last=True):
+        if indent is None:
+            indent = ''
+        if isinstance(generated_texts[0], str):
+            node_name = generated_texts[0]
+            if is_last:
+                print(indent + ' └─' + node_name)
+                indent += '   '
             else:
-                self.generate_print(generated_text, depth=depth+1)
+                print(indent + ' ├─' + node_name)
+                indent += ' │ '
+            for i, generated_text in enumerate(generated_texts[1:]):
+                self._recursive_print(generated_text, indent, (i == len(generated_texts[1:]) - 1))
+        else:
+            for i, generated_text in enumerate(generated_texts):
+                self._recursive_print(generated_text, indent, False)
+
+    def generate_print(self, depth=0):
+        generated_texts = self.generate()
+        #print(generated_texts)
+        self._recursive_print(generated_texts)
 
     def _register(self):
         generators[self.name] = self
