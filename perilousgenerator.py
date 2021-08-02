@@ -39,7 +39,7 @@ GenerateAction = collections.namedtuple('GenerateAction',
                                         defaults=(None, None, 1, True))
 
 class Generator:
-    def __init__(self, name, dice, entries, associated_generators=None):
+    def __init__(self, name, dice, entries=None, associated_generators=None):
         self.name = name
         self.dice = dice
         self.entries = entries
@@ -58,9 +58,13 @@ class Generator:
     def _resolve(self, to_resolve, depth=0, associated=True):
         if isinstance(to_resolve, GenerateAction):
             subgenerator = generators[to_resolve.generator_name]
-            if to_resolve.repeat > 1:
+            try:
+                repeat = to_resolve.repeat.roll()
+            except TypeError:
+                repeat = to_resolve.repeat
+            if repeat > 1:
                 return [subgenerator.generate(depth=depth+1, dice=to_resolve.dice, associated=associated)
-                        for _ in range(to_resolve.repeat)]
+                        for _ in range(repeat)]
             else:
                 return subgenerator.generate(depth=depth+1, dice=to_resolve.dice, associated=associated)
         elif to_resolve in generators:
@@ -69,12 +73,13 @@ class Generator:
             return [to_resolve]
 
     def generate(self, depth=0, dice=None, associated=True):
-        result = self.dice.roll() if not dice else dice.roll()
-        outcomes = self._select_outcomes(result)
-        #print(outcomes)
         generated_texts = [self.name]
-        for outcome in outcomes:
-            generated_texts.append(self._resolve(outcome, depth,  associated=associated))
+        if self.entries:
+            result = self.dice.roll() if not dice else dice.roll()
+            outcomes = self._select_outcomes(result)
+            print(outcomes)
+            for outcome in outcomes:
+                generated_texts.append(self._resolve(outcome, depth,  associated=associated))
         if associated:
             try:
                 for generator in self.associated_generators:
@@ -86,7 +91,7 @@ class Generator:
     def generate_print(self, generated_texts=None, depth=0):
         if not generated_texts:
             generated_texts = self.generate()
-            #print(generated_texts)
+            print(generated_texts)
         for generated_text in generated_texts:
             if isinstance(generated_text, str):
                 print('├' * depth + '┬' + generated_text)
@@ -307,6 +312,234 @@ Generator('steading', d12,
            Entry(9, ('keep',)),
            Entry(12, ('city',))))
 
+# DUNGEON ------------------------------------------------------------------------------------------
+
+Generator('dungeon', d12,
+          (Entry(1, ('dungeon small',)),
+           Entry(4, ('dungeon medium',)),
+           Entry(10, ('dungeon large',)),
+           Entry(12, ('dungeon huge',))))
+
+Generator('dungeon small', d12,
+          associated_generators=('dungeon function',
+                                 'dungeon themes',
+                                 GenerateAction('dungeon theme', repeat=d4),
+                                 'areas (1d6+2)',
+                                 'dungeon builder',
+                                 'dungeon ruination'))
+
+Generator('dungeon medium', d12,
+          associated_generators=('dungeon function',
+                                 'dungeon themes',
+                                 GenerateAction('dungeon theme', repeat=d6),
+                                 'areas (2d6+4)',
+                                 'dungeon builder',
+                                 'dungeon ruination'))
+
+Generator('dungeon large', d12,
+          associated_generators=('dungeon function',
+                                 'dungeon themes',
+                                 GenerateAction('dungeon theme', repeat=Dice([d6],1)),
+                                 'areas (3d6+6)',
+                                 'dungeon builder',
+                                 'dungeon ruination'))
+
+Generator('dungeon huge', d12,
+          associated_generators=('dungeon function',
+                                 'dungeon themes',
+                                 GenerateAction('dungeon theme', repeat=Dice([d6],2)),
+                                 'areas (4d6+10)',
+                                 'dungeon builder',
+                                 'dungeon ruination'))
+
+Generator('dungeon function', d12,
+          (Entry(1, ('source/portal',)),
+           Entry(2, ('mine',)),
+           Entry(3, ('tomb/crypt',)),
+           Entry(5, ('prison',)),
+           Entry(6, ('lair/den/hideout',)),
+           Entry(8, ('stronghold/sanctuary',)),
+           Entry(10, ('shrine/temple/oracle',)),
+           Entry(11, ('archive/library',)),
+           Entry(12, ('unknown/mystery',))))
+
+Generator('dungeon theme', d12,
+          (Entry(1, ('dungeon theme mundane',)),
+           Entry(6, ('dungeon theme unusual',)),
+           Entry(10, ('dungeon theme extroardinary',))))
+
+Generator('dungeon theme mundane', d12,
+          (Entry(1, ('rot/decay',)),
+           Entry(2, ('torture/agony',)),
+           Entry(3, ('madness',)),
+           Entry(4, ('all is lost',)),
+           Entry(5, ('noble sacrifice',)),
+           Entry(6, ('savage fury',)),
+           Entry(7, ('survival',)),
+           Entry(8, ('criminal activity',)),
+           Entry(9, ('secrets/treachery',)),
+           Entry(10, ('tricks and traps',)),
+           Entry(11, ('invasion/infestation',)),
+           Entry(12, ('factions at war',))))
+
+Generator('dungeon theme unusual', d12,
+          (Entry(1, ('creation/invention',)),
+           Entry(2, ('element',)),
+           Entry(3, ('knowledge/learning',)),
+           Entry(4, ('growth/expansion',)),
+           Entry(5, ('deepening mystery',)),
+           Entry(6, ('transformation/change',)),
+           Entry(7, ('chaos and destruction',)),
+           Entry(8, ('shadowy forces',)),
+           Entry(9, ('forbidden knowledge',)),
+           Entry(10, ('poison/disease',)),
+           Entry(11, ('corruption/blight',)),
+           Entry(12, ('impending disaster',))))
+
+Generator('dungeon theme extroardinary', d12,
+          (Entry(1, ('scheming evil',)),
+           Entry(2, ('divination/scrying',)),
+           Entry(3, ('blasphemy',)),
+           Entry(4, ('arcane research',)),
+           Entry(5, ('occult forces',)),
+           Entry(6, ('an ancient curse',)),
+           Entry(7, ('mutation',)),
+           Entry(8, ('the unquiet dead',)),
+           Entry(9, ('bottomless hunger',)),
+           Entry(10, ('incredible power',)),
+           Entry(11, ('unspeakable horrors',)),
+           Entry(12, ('holy war',))))
+
+Generator('dungeon ruination', d12,
+          (Entry(1, ('arcane disaster',)),
+           Entry(2, ('damnation/curse',)),
+           Entry(3, ('earthquake/fire/flood',)),
+           Entry(5, ('plague/famine/drought',)),
+           Entry(7, ('overrun by monsters',)),
+           Entry(9, ('war/invasion',)),
+           Entry(11, ('depleted resources',)),
+           Entry(12, ('better prospects elsewhere',))))
+
+Generator('dungeon builder', d12,
+          (Entry(1, ('aliens/precursors',)),
+           Entry(2, ('demigod/demon',)),
+           Entry(3, ('natural (caves, etc.)',)),
+           Entry(5, ('religious order/cult',)),
+           Entry(6, ('humanoid',)),
+           Entry(8, ('dwarves/gnomes',)),
+           Entry(10, ('elves',)),
+           Entry(11, ('wizard/madman',)),
+           Entry(12, ('monarch/warlord',))))
+
+Generator('dungeon exploration', d12,
+          (Entry(1, ('unthemed area, common, empty',)),
+           Entry(2, ('unthemed area, common','dungeon danger')),
+           Entry(3, ('unthemed area, common','dungeon discovery','dungeon danger')),
+           Entry(5, ('unthemed area, common','dungeon discovery')),
+           Entry(7, ('themed area, common','dungeon danger')),
+           Entry(8, ('themed area, common','dungeon discovery','dungeon danger')),
+           Entry(9, ('themed area, common','dungeon discovery')),
+           Entry(10, ('themed area, unique','dungeon danger')),
+           Entry(11, ('themed area, unique','dungeon discovery','dungeon danger')),
+           Entry(12, ('themed area, unique','dungeon discovery'))))
+
+Generator('dungeon discovery', d12,
+          (Entry(1, ('dungeon discovery dressing',)),
+           Entry(4, ('dungeon discovery feature',)),
+           Entry(10, ('dungeon discovery find',))))
+
+Generator('dungeon discovery dressing', d12,
+          (Entry(1, ('junk/debris',)),
+           Entry(2, ('tracks/marks',)),
+           Entry(3, ('signs of battle',)),
+           Entry(4, ('writing/carving',)),
+           Entry(5, ('warning',)),
+           Entry(6, ('dead creature',
+                     'creature')),
+           Entry(7, ('bones/remains',)),
+           Entry(8, ('book/scroll/map',)),
+           Entry(9, ('broken door/wall',)),
+           Entry(10, ('breeze/wind/smell',)),
+           Entry(11, ('lichen/moss/fungus',)),
+           Entry(12, ('oddity',))))
+
+Generator('dungeon discovery feature', d12,
+          (Entry(1, ('cave-in/collapse',)),
+           Entry(2, ('pit/shaft/chasm',)),
+           Entry(3, ('pillars/columns',)),
+           Entry(4, ('locked door/gate',)),
+           Entry(5, ('alcoves/niches',)),
+           Entry(6, ('bridge/stairs/ramp',)),
+           Entry(7, ('fountain/well/pool',)),
+           Entry(8, ('puzzle',)),
+           Entry(9, ('altar/dais/platform',)),
+           Entry(10, ('statue/idol',)),
+           Entry(11, ('magic pool/statue/idol',)),
+           Entry(12, ('connection to another dungeon',))))
+
+Generator('dungeon discovery find', d12,
+          (Entry(1, ('trinkets',)),
+           Entry(2, ('tools',)),
+           Entry(3, ('weapons/armor',)),
+           Entry(4, ('supplies/trade goods',)),
+           Entry(5, ('coins/gems/jewelry',)),
+           Entry(6, ('poisons/potions',)),
+           Entry(7, ('adventurer/captive',)),
+           Entry(8, ('magic item',)),
+           Entry(9, ('scroll/book',)),
+           Entry(10, ('magic weapon/armor',)),
+           Entry(11, ('artifact',)),
+           Entry(12, ('dungeon discovery find','dungeon discovery find'))))
+
+Generator('dungeon danger', d12,
+          (Entry(1, ('dungeon danger trap',)),
+           Entry(5, ('dungeon danger creature',)),
+           Entry(12, ('dungeon danger entity',))))
+
+Generator('dungeon danger trap', d12,
+          (Entry(1, ('alarm',)),
+           Entry(2, ('ensnaring/paralyzing',)),
+           Entry(3, ('pit',)),
+           Entry(4, ('crushing',)),
+           Entry(5, ('piercing/puncturing',)),
+           Entry(6, ('chopping/slashing',)),
+           Entry(7, ('confusing (maze, etc.)',)),
+           Entry(8, ('gaz (poison, etc.)',)),
+           Entry(9, ('element',)),
+           Entry(10, ('ambush',)),
+           Entry(11, ('magical',)),
+           Entry(12, ('dungeon danger trap','dungeon danger trap'))))
+
+Generator('dungeon danger creature', d12,
+          (Entry(1, ('waiting in ambush',)),
+           Entry(2, ('fighting/squabbling',)),
+           Entry(3, ('prowling/on patrol',)),
+           Entry(4, ('looking for food',)),
+           Entry(5, ('eating/resting',)),
+           Entry(6, ('guarding',)),
+           Entry(7, ('on the move',)),
+           Entry(8, ('searching/scavenging',)),
+           Entry(9, ('returning to den',)),
+           Entry(10, ('making plans',)),
+           Entry(11, ('sleeping',)),
+           Entry(12, ('dying',))),
+          associated_generators=('creature',))
+
+Generator('dungeon danger entity', d12,
+          (Entry(1, ('alien interloper',)),
+           Entry(2, ('vermin lord',)),
+           Entry(3, ('criminal mastermind',)),
+           Entry(4, ('warlord',)),
+           Entry(5, ('high priest',)),
+           Entry(6, ('oracle',)),
+           Entry(7, ('wizard/witch/alchemist',)),
+           Entry(8, ('monster lord',
+                     'monster')),
+           Entry(9, ('evil spirit/ghost',)),
+           Entry(10, ('undead lord (lich, etc.)',)),
+           Entry(11, ('demon',)),
+           Entry(12, ('dark god',))))
+
 # DANGERS ------------------------------------------------------------------------------------------
 
 Generator('danger', d12,
@@ -363,7 +596,7 @@ Generator('unnatural entity divine', d12,
 Generator('hazard', d12,
           (Entry(1, ('hazard unnatural',)),
            Entry(3, ('hazard natural',)),
-           Entry(11, ('hazard trap','creature responsible',)))) # TODO
+           Entry(11, ('hazard trap',))))
 
 Generator('hazard unnatural', d12,
           (Entry(1, ('taint/blight/curse',)),
@@ -387,9 +620,10 @@ Generator('hazard trap', d12,
            Entry(6, ('injurious (pit, etc...)',)),
            Entry(9, ('gas/fire/poison',)),
            Entry(10, ('ambush',))),
-          associated_generators=('creature',
-                                 'aspect',
-                                 'visibility'))
+          associated_generators=('aspect',
+                                 'visibility',
+                                 'creature responsible',
+                                 'creature'))
 
 # CREATURES ----------------------------------------------------------------------------------------
 
@@ -630,7 +864,7 @@ Generator('npc trait physical appearance', d12,
            Entry(9, ('notable eyes (blue, bloodshot, etc.)',)),
            Entry(10, ('clean/well-dressed/well-groomed',)),
            Entry(11, ('attractive/handsome/stunning',)),
-           Entry(12, ('they are [roll again] despite [a contradictory detail of your choice]','npc trait', 'npc trait'))))
+           Entry(12, ('they are [roll again] despite [a contradictory detail of your choice]','npc trait physical appearance', 'npc trait physical appearance'))))
 
 Generator('npc trait personality', d12,
           (Entry(1, ('loner/alienated/antisocial',)),
@@ -644,7 +878,7 @@ Generator('npc trait personality', d12,
            Entry(9, ('kind/generous/compassionate',)),
            Entry(10, ('easygoing/relaxed/peaceful',)),
            Entry(11, ('cheerful/happy/optimistic',)),
-           Entry(12, ('they are [roll again] despite [a contradictory detail of your choice]','npc trait', 'npc trait'))))
+           Entry(12, ('they are [roll again] despite [a contradictory detail of your choice]','npc trait personality', 'npc trait personality'))))
 
 Generator('npc trait quirk', d12,
           (Entry(1, ('insecure/racist/xenophobic',)),
@@ -658,7 +892,7 @@ Generator('npc trait quirk', d12,
            Entry(9, ('smart aleck/know-it-all',)),
            Entry(10, ('artistic/dreamer/delusional',)),
            Entry(11, ('naive/idealistic',)),
-           Entry(12, ('they are [roll again] despite [a contradictory detail of your choice]','npc trait', 'npc trait'))))
+           Entry(12, ('they are [roll again] despite [a contradictory detail of your choice]','npc trait quirk', 'npc trait quirk'))))
 
 # DETAILS ------------------------------------------------------------------------------------------
 
@@ -876,9 +1110,11 @@ Generator('binding', d12,
 
 def main():
     try:
-        previous_generator_name = ''
+        previous_generator_name = 'discovery'
         while True:
-            generator_name = input('Enter a valid generator name (' + previous_generator_name + '): ')
+            generator_name = input('Enter a generator name (default: '
+                                   + previous_generator_name
+                                   + '): ')
             if generator_name == 'ls':
                 print(', '.join(generators.keys()))
             elif generator_name == '':
