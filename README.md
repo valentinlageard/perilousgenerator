@@ -19,7 +19,7 @@ General generators :
 - danger
 - dungeon exploration
 
-## Example outputs
+## Example outputs
 
 ```
  └─discovery
